@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Simple d3 diagram</title>
+
+        <style>
+        .boundary {
+            fill-opacity: .6;
+            stroke: #000;
+        }
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 5px;
+            font: 1em sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        </style>
+
+        <script src="http://d3js.org/d3.v3.js"></script>
+        <script src="http://d3js.org/d3.geo.projection.v0.min.js"></script>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+        var width = 960;
+        var height = 500;
+
+        // div that will be used as a tooltip
+        var div = d3.select('body').append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0);
+
+        var svg = d3.select('body').append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // svg group elements used as layers
+        var base = svg.append('g');
+        var overlay = svg.append('g');
+        var legend = svg.append('g');
+
+        var color = d3.scale.category20c();
+
+        var projection = d3.geo.conicEqualArea()
+            .parallels([50, 52])
+            .scale(15000)
+            .center([
+                13.75,
+                50.8
+            ]);
+
+        var path = d3.geo.path()
+            .projection(projection);
+
+        d3.json('regions.geojson', function(error, subunits) {
+            // render the boundaries of all subunits
+            var subunit = base.selectAll('.france')
+                .data(subunits.features)
+              .enter().append('path')
+                .attr('class', function(d) {
+                    var c = d.properties.nom;
+                    return 'boundary ' + c.toLowerCase().replace(' ', '-');
+                })
+                .attr('fill', function(d, i) {
+                    return color(i);
+                })
+                .attr('d', path);
+
+            // render bar chart binding mouse events to the elements
+            var bars = overlay.selectAll('g')
+                .data(subunits.features)
+              .enter().append('g')
+                .attr('class', 'bars')
+                .attr('transform', function(d) {
+                    return 'translate(' + path.centroid(d) + ')';
+                })
+                .on('mouseover', function(d) {
+                    div.transition()
+                        .duration(200)
+                        .style('opacity', .9);
+                    div.html('<b>' + d.properties.nom + '</b></br>' +
+                        'Taux de Rebond: ' + d.properties.Taux_de_Rebond + '</br>')
+                        .style('left', (d3.event.pageX) + 'px')
+                        .style('top', (d3.event.pageY - 28) + 'px');
+                    })
+                .on('mouseout', function(d) {
+                    div.transition()
+                        .duration(500)
+                        .style('opacity', 0);
+                });
+
+            bars.append('rect')
+                .attr('height', function(d) {
+                    return d.properties.Taux_de_Rebond;
+                })
+                .attr('width', 10)
+                .attr('x', function(d) {
+                    return -5;
+                })
+                .attr('y', function(d) {
+                    return -(d.properties.Taux_de_Rebond);
+                })
+                .attr('class', 'bars')
+                .style('fill', 'blue')
+                .style('stroke', 'white')
+                .style('stroke-width', 1);
+
+            bars.append('rect')
+                .attr('height', function(d) {
+                    return d.properties.Taux_de_Rebond * 2;
+                })
+                .attr('width', 10)
+                .attr('x', function(d) {
+                    return 5;
+                })
+                .attr('y', function(d) {
+                    return -(d.properties.Taux_de_Rebond * 2);
+                })
+                .attr('class', 'bars')
+                .style('fill', 'purple')
+                .style('stroke', 'white')
+                .style('stroke-width', 1);
+
+            // used as data for legend
+            var years = [
+                { year: 2013, color: 'blue'},
+                { year: 2025, color: 'purple'}
+            ];
+
+            // render legend
+            legend.selectAll('rect')
+                .data(years)
+              .enter().append('rect')
+                .attr('x', 25)
+                .attr('y', function(d, i) {
+                    return (i * 30) + 20;
+                })
+                .attr('width', 25)
+                .attr('height', 25)
+                .style('fill', function(d, i) {
+                    return d.color;
+                })
+                .style('storke', 'white')
+                .style('stroke-width', 1);
+
+            legend.selectAll('text')
+                .data(years)
+              .enter().append('text')
+                .attr('x', 55)
+                .attr('y', function(d, i) {
+                    return (i * 30) + 37;
+                })
+                .style('font-size', '1em')
+                .text(function(d) {
+                    var text = d.year;
+                    return text;
+                });
+
+            legend.append('text')
+                .attr('x', 50)
+                .attr('y', height - 25)
+                .style('font-size', '1em')
+                .html('Veränderung der Bevölkerung 2025 gegenüber 2013 - Variante 1' +
+                    ' (Quelle: Statistisches Landesamt Sachsen)')
+        });
+        </script>
+    </body>
+</html>
